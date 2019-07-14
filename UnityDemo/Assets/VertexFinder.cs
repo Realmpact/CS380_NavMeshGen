@@ -85,6 +85,7 @@ public class VertexFinder : MonoBehaviour
     int testIndexTwo = 1;
     void Update()
     {
+        /*
         if (Application.isPlaying)
         {
             if (testIndexOne < vertices.Count - 1 && Input.GetKeyDown(KeyCode.A))
@@ -97,6 +98,7 @@ public class VertexFinder : MonoBehaviour
             else if (testIndexTwo >= 1 && Input.GetKeyDown(KeyCode.L))
                 --testIndexTwo;
         }
+        */
     }
 
 
