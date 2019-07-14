@@ -21,6 +21,7 @@ public struct Vertex
     public Vector3 position;
     public Vector3 normal;
     public Dictionary<int, Vertex> neighbours;
+    public bool isKey;
 
     public Vertex(int i, Vector3 pos, Vector3 nrm)
     {
@@ -28,6 +29,7 @@ public struct Vertex
         position = pos;
         normal = nrm;
         neighbours = new Dictionary<int, Vertex>();
+        isKey = false;
     }
 
     public bool IsSame(Vertex v)
@@ -222,7 +224,10 @@ public class NavmeshGenerator : MonoBehaviour
     {
         if (!meshFilter) return;
 
+        GameObject[] obstacles = GameObject.FindGameObjectsWithTag("NavMeshObstacle");
+
         Mesh mesh = meshFilter.mesh;
+        Matrix4x4 matrix = meshFilter.transform.localToWorldMatrix;
         allTriangles.Clear();
         allPolygons.Clear();
         uniqueVertices.Clear();
@@ -234,9 +239,10 @@ public class NavmeshGenerator : MonoBehaviour
             int idxTri1 = mesh.triangles[i + 1];
             int idxTri2 = mesh.triangles[i + 2];
 
-            Vertex v0 = new Vertex(idxTri0, mesh.vertices[idxTri0], mesh.normals[idxTri0]);
-            Vertex v1 = new Vertex(idxTri1, mesh.vertices[idxTri1], mesh.normals[idxTri1]);
-            Vertex v2 = new Vertex(idxTri2, mesh.vertices[idxTri2], mesh.normals[idxTri2]);
+            Vertex v0 = new Vertex(idxTri0, matrix.MultiplyPoint3x4(mesh.vertices[idxTri0]), matrix.MultiplyVector(mesh.normals[idxTri0]));
+            Vertex v1 = new Vertex(idxTri1, matrix.MultiplyPoint3x4(mesh.vertices[idxTri1]), matrix.MultiplyVector(mesh.normals[idxTri1]));
+            Vertex v2 = new Vertex(idxTri2, matrix.MultiplyPoint3x4(mesh.vertices[idxTri2]), matrix.MultiplyVector(mesh.normals[idxTri2]));
+
             Triangle triangle = new Triangle(v0, v1, v2);
             if (Vector3.Dot(Vector3.up, triangle.normal) >= cosSlope)
             {
@@ -255,7 +261,41 @@ public class NavmeshGenerator : MonoBehaviour
             }
         }
 
-        for (int i = 0; i < allTriangles.Count; ++i)
+        foreach (KeyValuePair<int, Vertex> pair in uniqueVertices)
+        {
+            Vertex vertex = pair.Value;
+            List<int> invalidId = new List<int>();
+            foreach (KeyValuePair<int, Vertex> neighbourPair in vertex.neighbours)
+            {
+                Vertex neighbour = neighbourPair.Value;
+                Ray ray = new Ray(vertex.position, (neighbour.position - vertex.position).normalized);
+                float dist = (neighbour.position - vertex.position).magnitude;
+                RaycastHit hitInfo;
+                foreach (GameObject obstacle in obstacles)
+                {
+                    Collider collider = obstacle.GetComponent<Collider>();
+                    if (!collider) continue;
+
+                    if (collider.ClosestPoint(neighbour.position) == neighbour.position)
+                    {
+                        vertex.isKey = true;
+                        invalidId.Add(neighbour.id);
+                    }
+                   else if (collider.Raycast(ray, out hitInfo, dist))
+                    {
+                        vertex.isKey = true;
+                        neighbour.isKey = true;
+                        invalidId.Add(neighbour.id);
+                    }
+                }
+            }
+            foreach (int id in invalidId)
+            {
+                vertex.neighbours.Remove(id);
+            }
+        }
+
+            for (int i = 0; i < allTriangles.Count; ++i)
         {
             Triangle triangle = allTriangles[i];
             Polygon polygon = new Polygon(triangle);
@@ -310,7 +350,7 @@ public class NavmeshGenerator : MonoBehaviour
                     ++multipier;
                 }
             }
-            if (vertex.Value.neighbours.Count > 3 * multipier)
+            if (vertex.Value.neighbours.Count > 3 * multipier && !vertex.Value.isKey)
             {
                 idsRemove.Add(vertex.Key);
             }
@@ -346,12 +386,6 @@ public class NavmeshGenerator : MonoBehaviour
                 {
                     int id = allPolygons[i].vertices[j].id;
                     uniqueVertices[id].neighbours.Clear();
-                    /*for (int k = j + 1; k < allPolygons[i].vertices.Count; ++k)
-                    {
-                        int neighbourId = allPolygons[i].vertices[k].id;
-                        if (!uniqueVertices[id].neighbours.ContainsKey(neighbourId)) uniqueVertices[id].neighbours.Add(neighbourId, allPolygons[i].vertices[k]);
-                        if (!uniqueVertices[neighbourId].neighbours.ContainsKey(id)) uniqueVertices[neighbourId].neighbours.Add(id, allPolygons[i].vertices[j]);
-                    }*/
                 }
             }
         }
@@ -359,7 +393,9 @@ public class NavmeshGenerator : MonoBehaviour
         allNavMeshTriangles.Clear();
         for (int i = allPolygons.Count - 1; i >= 0; --i)
         {
-            Triangulate(allPolygons[i].vertices);
+            List<Vertex> temp = allPolygons[i].vertices;
+            //CheckCollisions(ref temp, ref obstacles);
+            Triangulate(temp, ref obstacles);
         }
 
         for (int i = 0; i < allNavMeshTriangles.Count; ++i)
@@ -375,28 +411,78 @@ public class NavmeshGenerator : MonoBehaviour
         }
     }
 
-    void Triangulate(List<Vertex> vertices)
+    void CheckCollisions(ref List<Vertex> vertices, ref GameObject[] obstacles)
+    {
+        for (int i = 0; i < vertices.Count; ++i)
+        {
+            Vector3 startPos = vertices[i].position;
+            for (int j = i + 1; j < vertices.Count; ++j)
+            {
+                Vector3 direction = (vertices[j].position - startPos).normalized;
+                Ray ray = new Ray();
+                ray.origin = startPos;
+                ray.direction = direction;
+
+                foreach (GameObject obstacle in obstacles)
+                {
+                    Collider collider = obstacle.GetComponent<Collider>();
+                }
+            }
+        }
+    }
+
+    void Triangulate(List<Vertex> vertices, ref GameObject[] obstacles)
     { 
         vertices.Sort((a, b) => a.position.x.CompareTo(b.position.x));
 
-        for (int i = 0; i < vertices.Count - 2; ++i)
+        for (int i = 0; i < vertices.Count; ++i)
         {
-            Vertex v0 = vertices[i];
-            Vertex v1 = vertices[i + 1];
-            Vertex v2 = vertices[i + 2];
-            int idxTri0 = v0.id;
-            int idxTri1 = v1.id;
-            int idxTri2 = v2.id;
+            for (int j = i + 1; j < vertices.Count; ++j)
+            {
+                for (int k = j + 1; (k % vertices.Count) != i; ++k)
+                {
+                    Vertex v0 = vertices[i];
+                    Vertex v1 = vertices[j % vertices.Count];
+                    Vertex v2 = vertices[k % vertices.Count];
+                    int idxTri0 = v0.id;
+                    int idxTri1 = v1.id;
+                    int idxTri2 = v2.id;
 
-            if (!uniqueVertices[idxTri0].neighbours.ContainsKey(idxTri1)) uniqueVertices[idxTri0].neighbours.Add(idxTri1, v1);
-            if (!uniqueVertices[idxTri0].neighbours.ContainsKey(idxTri2)) uniqueVertices[idxTri0].neighbours.Add(idxTri2, v2);
-            if (!uniqueVertices[idxTri1].neighbours.ContainsKey(idxTri0)) uniqueVertices[idxTri1].neighbours.Add(idxTri0, v0);
-            if (!uniqueVertices[idxTri1].neighbours.ContainsKey(idxTri2)) uniqueVertices[idxTri1].neighbours.Add(idxTri2, v2);
-            if (!uniqueVertices[idxTri2].neighbours.ContainsKey(idxTri1)) uniqueVertices[idxTri2].neighbours.Add(idxTri1, v1);
-            if (!uniqueVertices[idxTri2].neighbours.ContainsKey(idxTri0)) uniqueVertices[idxTri2].neighbours.Add(idxTri0, v0);
+                    Ray ray0 = new Ray(v0.position, (v1.position - v0.position).normalized);
+                    Ray ray1 = new Ray(v1.position, (v2.position - v1.position).normalized);
+                    Ray ray2 = new Ray(v2.position, (v0.position - v2.position).normalized);
+                    float dist0 = (v1.position - v0.position).magnitude;
+                    float dist1 = (v2.position - v1.position).magnitude;
+                    float dist2 = (v0.position - v2.position).magnitude;
+                    RaycastHit hitInfo;
 
-            NavmeshTriangle triangle = new NavmeshTriangle(v0, v1, v2);
-            allNavMeshTriangles.Add(triangle);
+                    bool skip = false;
+                    foreach (GameObject obstacle in obstacles)
+                    {
+                        Collider collider = obstacle.GetComponent<Collider>();
+                        if (!collider) continue;
+
+                        if (collider.Raycast(ray0, out hitInfo, dist0) ||
+                        collider.Raycast(ray1, out hitInfo, dist1) ||
+                        collider.Raycast(ray2, out hitInfo, dist2))
+                        {
+                            skip = true;
+                            break;
+                        }
+                    }
+                    if (skip) continue;
+
+                    if (!uniqueVertices[idxTri0].neighbours.ContainsKey(idxTri1)) uniqueVertices[idxTri0].neighbours.Add(idxTri1, v1);
+                    if (!uniqueVertices[idxTri0].neighbours.ContainsKey(idxTri2)) uniqueVertices[idxTri0].neighbours.Add(idxTri2, v2);
+                    if (!uniqueVertices[idxTri1].neighbours.ContainsKey(idxTri0)) uniqueVertices[idxTri1].neighbours.Add(idxTri0, v0);
+                    if (!uniqueVertices[idxTri1].neighbours.ContainsKey(idxTri2)) uniqueVertices[idxTri1].neighbours.Add(idxTri2, v2);
+                    if (!uniqueVertices[idxTri2].neighbours.ContainsKey(idxTri1)) uniqueVertices[idxTri2].neighbours.Add(idxTri1, v1);
+                    if (!uniqueVertices[idxTri2].neighbours.ContainsKey(idxTri0)) uniqueVertices[idxTri2].neighbours.Add(idxTri0, v0);
+
+                    NavmeshTriangle triangle = new NavmeshTriangle(v0, v1, v2);
+                    allNavMeshTriangles.Add(triangle);
+                }
+            }
         }
     }
 }
