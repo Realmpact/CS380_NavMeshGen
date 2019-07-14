@@ -60,6 +60,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assets\CamerControl.cs" />
     <Compile Include="Assets\NavmeshGenerator.cs" />
     <Compile Include="Assets\VertexFinder.cs" />
     <Reference Include="Unity.TextMeshPro.Editor">
