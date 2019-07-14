@@ -184,6 +184,7 @@ public struct NavmeshTriangle
 
 public class NavmeshGenerator : MonoBehaviour
 {
+    public Material lineMat;     // material of line used to draw
     public MeshFilter meshFilter;
 
     public NormalType typeNormal = NormalType.NONE;
@@ -203,7 +204,7 @@ public class NavmeshGenerator : MonoBehaviour
         {
             ComputeNavmesh();
         }
-
+        /*
         foreach (Polygon polygon in allPolygons)
         {
             foreach (Vertex vertex in polygon.vertices)
@@ -216,6 +217,38 @@ public class NavmeshGenerator : MonoBehaviour
                 }
             }
         }
+        */
+    }
+
+    void MyDrawLine(Vector3 start, Vector3 end, Material lineMat)
+    {
+        GL.Begin(GL.LINES); // start draw
+        lineMat.SetPass(0);
+        // set color
+        GL.Color(new Color(lineMat.color.r, lineMat.color.g, lineMat.color.b, lineMat.color.a));
+        // start and end points
+        GL.Vertex3(start.x, start.y, start.z);
+        GL.Vertex3(end.x, end.y, end.z);
+        GL.End(); // end draw
+    }
+
+    void DrawNavMesh()
+    {
+        foreach (NavmeshTriangle triangle in allNavMeshTriangles)
+        {
+            Vector3[] vtx = new Vector3 [3];
+            vtx[0] = triangle.v0.point;
+            vtx[1] = triangle.v1.point;
+            vtx[2] = triangle.v2.point;
+            MyDrawLine(vtx[0], vtx[1], lineMat);
+            MyDrawLine(vtx[1], vtx[2], lineMat);
+            MyDrawLine(vtx[2], vtx[0], lineMat);
+        }
+    }
+
+    void OnPostRender()
+    {
+        DrawNavMesh();
     }
 
     public void ComputeNavmesh()
