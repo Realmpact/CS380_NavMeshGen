@@ -155,13 +155,34 @@ public struct Polygon
 
 public struct NavmeshTriangle
 {
-    public Vector3 v0;
-    public Vector3 v1;
-    public Vector3 v2;
+    public NavMeshVertex v0;
+    public NavMeshVertex v1;
+    public NavMeshVertex v2;
     public List<NavmeshTriangle> neighbours;
+
+    public NavmeshTriangle(Vertex a, Vertex b, Vertex c)
+    {
+        v0 = new NavMeshVertex();
+        v0.point = a.position;
+        v0.id = a.id;
+        v1 = new NavMeshVertex();
+        v1.point = b.position;
+        v1.id = b.id;
+        v2 = new NavMeshVertex();
+        v2.point = c.position;
+        v2.id = c.id;
+        neighbours = new List<NavmeshTriangle>();
+    }
+
+    public bool CheckNeighbour(NavmeshTriangle triangle)
+    {
+        return (v0.id == triangle.v0.id || v0.id == triangle.v1.id || v0.id == triangle.v2.id
+            || v1.id == triangle.v0.id || v1.id == triangle.v1.id || v1.id == triangle.v2.id
+            || v2.id == triangle.v0.id || v2.id == triangle.v1.id || v2.id == triangle.v2.id);
+    }
 }
 
-public class NavmeshGenerator:MonoBehaviour
+public class NavmeshGenerator : MonoBehaviour
 {
     public MeshFilter meshFilter;
 
@@ -173,6 +194,7 @@ public class NavmeshGenerator:MonoBehaviour
 
     public List<Triangle> allTriangles = new List<Triangle>();
     public List<Polygon> allPolygons = new List<Polygon>();
+    public List<NavmeshTriangle> allNavMeshTriangles = new List<NavmeshTriangle>();
     public Dictionary<int, Vertex> uniqueVertices = new Dictionary<int, Vertex>();
 
     private void Update()
@@ -181,16 +203,6 @@ public class NavmeshGenerator:MonoBehaviour
         {
             ComputeNavmesh();
         }
-
-        /*foreach (KeyValuePair<int, Vertex> vertex in uniqueVertices)
-        {
-            Color color = Random.ColorHSV();
-            Debug.DrawRay(vertex.Value.position, vertex.Value.normal, color);
-            foreach (KeyValuePair<int, Vertex> neighbour in vertex.Value.neighbours)
-            {
-                Debug.DrawLine(vertex.Value.position, neighbour.Value.position, color);
-            }
-        }*/
 
         foreach (Polygon polygon in allPolygons)
         {
@@ -333,14 +345,58 @@ public class NavmeshGenerator:MonoBehaviour
                 for (int j = 0; j < allPolygons[i].vertices.Count - 1; ++j)
                 {
                     int id = allPolygons[i].vertices[j].id;
-                    for (int k = j + 1; k < allPolygons[i].vertices.Count; ++k)
+                    uniqueVertices[id].neighbours.Clear();
+                    /*for (int k = j + 1; k < allPolygons[i].vertices.Count; ++k)
                     {
                         int neighbourId = allPolygons[i].vertices[k].id;
                         if (!uniqueVertices[id].neighbours.ContainsKey(neighbourId)) uniqueVertices[id].neighbours.Add(neighbourId, allPolygons[i].vertices[k]);
                         if (!uniqueVertices[neighbourId].neighbours.ContainsKey(id)) uniqueVertices[neighbourId].neighbours.Add(id, allPolygons[i].vertices[j]);
-                    }
+                    }*/
                 }
             }
+        }
+
+        allNavMeshTriangles.Clear();
+        for (int i = allPolygons.Count - 1; i >= 0; --i)
+        {
+            Triangulate(allPolygons[i].vertices);
+        }
+
+        for (int i = 0; i < allNavMeshTriangles.Count; ++i)
+        {
+            for (int j = i + 1; j < allNavMeshTriangles.Count; ++j)
+            {
+                if (allNavMeshTriangles[i].CheckNeighbour(allNavMeshTriangles[j]))
+                {
+                    allNavMeshTriangles[i].neighbours.Add(allNavMeshTriangles[j]);
+                    allNavMeshTriangles[j].neighbours.Add(allNavMeshTriangles[i]);
+                }
+            }
+        }
+    }
+
+    void Triangulate(List<Vertex> vertices)
+    { 
+        vertices.Sort((a, b) => a.position.x.CompareTo(b.position.x));
+
+        for (int i = 0; i < vertices.Count - 2; ++i)
+        {
+            Vertex v0 = vertices[i];
+            Vertex v1 = vertices[i + 1];
+            Vertex v2 = vertices[i + 2];
+            int idxTri0 = v0.id;
+            int idxTri1 = v1.id;
+            int idxTri2 = v2.id;
+
+            if (!uniqueVertices[idxTri0].neighbours.ContainsKey(idxTri1)) uniqueVertices[idxTri0].neighbours.Add(idxTri1, v1);
+            if (!uniqueVertices[idxTri0].neighbours.ContainsKey(idxTri2)) uniqueVertices[idxTri0].neighbours.Add(idxTri2, v2);
+            if (!uniqueVertices[idxTri1].neighbours.ContainsKey(idxTri0)) uniqueVertices[idxTri1].neighbours.Add(idxTri0, v0);
+            if (!uniqueVertices[idxTri1].neighbours.ContainsKey(idxTri2)) uniqueVertices[idxTri1].neighbours.Add(idxTri2, v2);
+            if (!uniqueVertices[idxTri2].neighbours.ContainsKey(idxTri1)) uniqueVertices[idxTri2].neighbours.Add(idxTri1, v1);
+            if (!uniqueVertices[idxTri2].neighbours.ContainsKey(idxTri0)) uniqueVertices[idxTri2].neighbours.Add(idxTri0, v0);
+
+            NavmeshTriangle triangle = new NavmeshTriangle(v0, v1, v2);
+            allNavMeshTriangles.Add(triangle);
         }
     }
 }

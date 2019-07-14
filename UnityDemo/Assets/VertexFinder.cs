@@ -7,6 +7,7 @@ public class NavMeshVertex
 {
     public NavMeshVertex()
     {
+        id = -1;
         neighbours = new List<NavMeshVertex>();
         cost = new List<float>();
         Reset();
@@ -19,6 +20,7 @@ public class NavMeshVertex
         isVisited = false;
     }
 
+    public int id;
     public Vector3 point;
     public List<NavMeshVertex> neighbours;
     public List<float> cost;

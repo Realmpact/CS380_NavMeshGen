@@ -61,6 +61,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\NavmeshGenerator.cs" />
+    <Compile Include="Assets\VertexFinder.cs" />
     <Reference Include="Unity.TextMeshPro.Editor">
       <HintPath>C:/Users/vrens/Desktop/School/CS 380/CS380_NavMeshGen/UnityDemo/Library/ScriptAssemblies/Unity.TextMeshPro.Editor.dll</HintPath>
     </Reference>
