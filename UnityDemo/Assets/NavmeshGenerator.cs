@@ -160,6 +160,7 @@ public struct NavmeshTriangle
     public NavMeshVertex v0;
     public NavMeshVertex v1;
     public NavMeshVertex v2;
+    public Vector3 normal;
     public List<NavmeshTriangle> neighbours;
 
     public NavmeshTriangle(Vertex a, Vertex b, Vertex c)
@@ -173,14 +174,17 @@ public struct NavmeshTriangle
         v2 = new NavMeshVertex();
         v2.point = c.position;
         v2.id = c.id;
+        normal = ((a.normal + b.normal + c.normal) / 3).normalized;
         neighbours = new List<NavmeshTriangle>();
     }
 
-    public bool CheckNeighbour(NavmeshTriangle triangle)
+    public bool IsAdjacent(NavmeshTriangle triangle)
     {
-        return (v0.id == triangle.v0.id || v0.id == triangle.v1.id || v0.id == triangle.v2.id
-            || v1.id == triangle.v0.id || v1.id == triangle.v1.id || v1.id == triangle.v2.id
-            || v2.id == triangle.v0.id || v2.id == triangle.v1.id || v2.id == triangle.v2.id);
+        int commonEdge = 0;
+        if (v0.id == triangle.v0.id || v0.id == triangle.v1.id || v0.id == triangle.v2.id) ++commonEdge;
+        if (v1.id == triangle.v0.id || v1.id == triangle.v1.id || v1.id == triangle.v2.id) ++commonEdge;
+        if (v2.id == triangle.v0.id || v2.id == triangle.v1.id || v2.id == triangle.v2.id) ++commonEdge;
+        return commonEdge == 2;
     }
 }
 
@@ -427,7 +431,6 @@ public class NavmeshGenerator : MonoBehaviour
         for (int i = allPolygons.Count - 1; i >= 0; --i)
         {
             List<Vertex> temp = allPolygons[i].vertices;
-            //CheckCollisions(ref temp, ref obstacles);
             Triangulate(temp, ref obstacles);
         }
 
@@ -435,7 +438,7 @@ public class NavmeshGenerator : MonoBehaviour
         {
             for (int j = i + 1; j < allNavMeshTriangles.Count; ++j)
             {
-                if (allNavMeshTriangles[i].CheckNeighbour(allNavMeshTriangles[j]))
+                if (allNavMeshTriangles[i].IsAdjacent(allNavMeshTriangles[j]))
                 {
                     allNavMeshTriangles[i].neighbours.Add(allNavMeshTriangles[j]);
                     allNavMeshTriangles[j].neighbours.Add(allNavMeshTriangles[i]);
