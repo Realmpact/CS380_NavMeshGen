@@ -163,18 +163,12 @@ public struct NavmeshTriangle
     public Vector3 normal;
     public List<NavmeshTriangle> neighbours;
 
-    public NavmeshTriangle(Vertex a, Vertex b, Vertex c)
+    public NavmeshTriangle(NavMeshVertex a, NavMeshVertex b, NavMeshVertex c)
     {
-        v0 = new NavMeshVertex();
-        v0.point = a.position;
-        v0.id = a.id;
-        v1 = new NavMeshVertex();
-        v1.point = b.position;
-        v1.id = b.id;
-        v2 = new NavMeshVertex();
-        v2.point = c.position;
-        v2.id = c.id;
-        normal = ((a.normal + b.normal + c.normal) / 3).normalized;
+        v0 = a;
+        v1 = b;
+        v2 = c;
+        normal = Vector3.zero;
         neighbours = new List<NavmeshTriangle>();
     }
 
@@ -203,6 +197,7 @@ public class NavmeshGenerator : MonoBehaviour
     public List<Polygon> allPolygons = new List<Polygon>();
     public List<NavmeshTriangle> allNavMeshTriangles = new List<NavmeshTriangle>();
     public Dictionary<int, Vertex> uniqueVertices = new Dictionary<int, Vertex>();
+    public Dictionary<int, NavMeshVertex> uniqueNavmeshVertices = new Dictionary<int, NavMeshVertex>();
 
     private void Update()
     {
@@ -268,6 +263,7 @@ public class NavmeshGenerator : MonoBehaviour
         allTriangles.Clear();
         allPolygons.Clear();
         uniqueVertices.Clear();
+        uniqueNavmeshVertices.Clear();
 
         float cosSlope = Mathf.Cos(slopeAngle * Mathf.Deg2Rad);
         for (int i = 0; i < mesh.triangles.Length; i += 3)
@@ -445,6 +441,15 @@ public class NavmeshGenerator : MonoBehaviour
                 }
             }
         }
+
+        foreach (KeyValuePair<int, NavMeshVertex> navVertexPair in uniqueNavmeshVertices)
+        {
+            Vertex correspondance = uniqueVertices[navVertexPair.Value.id];
+            foreach (KeyValuePair<int, Vertex> vertexPair in correspondance.neighbours)
+            {
+                navVertexPair.Value.neighbours.Add(uniqueNavmeshVertices[vertexPair.Value.id]);
+            }
+        }
     }
 
     void CheckCollisions(ref List<Vertex> vertices, ref GameObject[] obstacles)
@@ -515,7 +520,33 @@ public class NavmeshGenerator : MonoBehaviour
                     if (!uniqueVertices[idxTri2].neighbours.ContainsKey(idxTri1)) uniqueVertices[idxTri2].neighbours.Add(idxTri1, v1);
                     if (!uniqueVertices[idxTri2].neighbours.ContainsKey(idxTri0)) uniqueVertices[idxTri2].neighbours.Add(idxTri0, v0);
 
-                    NavmeshTriangle triangle = new NavmeshTriangle(v0, v1, v2);
+                    NavMeshVertex nv0, nv1, nv2;
+                    if (!uniqueNavmeshVertices.ContainsKey(idxTri0))
+                    {
+                        nv0 = new NavMeshVertex();
+                        nv0.id = v0.id;
+                        nv0.point = v0.position;
+                        uniqueNavmeshVertices.Add(v0.id, nv0);
+                    }
+                    else nv0 = uniqueNavmeshVertices[idxTri0];
+                    if (!uniqueNavmeshVertices.ContainsKey(idxTri1))
+                    {
+                        nv1 = new NavMeshVertex();
+                        nv1.id = v1.id;
+                        nv1.point = v1.position;
+                        uniqueNavmeshVertices.Add(v1.id, nv1);
+                    }
+                    else nv1 = uniqueNavmeshVertices[idxTri1];
+                    if (!uniqueNavmeshVertices.ContainsKey(idxTri2))
+                    {
+                        nv2 = new NavMeshVertex();
+                        nv2.id = v2.id;
+                        nv2.point = v2.position;
+                        uniqueNavmeshVertices.Add(v2.id, nv2);
+                    }
+                    else nv2 = uniqueNavmeshVertices[idxTri2];
+
+                    NavmeshTriangle triangle = new NavmeshTriangle(nv0, nv1, nv2);
                     allNavMeshTriangles.Add(triangle);
                 }
             }
