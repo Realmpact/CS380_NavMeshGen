@@ -544,7 +544,7 @@ public class NavmeshGenerator : MonoBehaviour
                         nv0 = new NavMeshVertex();
                         nv0.id = v0.id;
                         nv0.point = v0.position;
-                        uniqueNavmeshVertices.Add(v0.id, nv0);
+                        uniqueNavmeshVertices.Add(idxTri0, nv0);
                     }
                     else nv0 = uniqueNavmeshVertices[idxTri0];
                     if (!uniqueNavmeshVertices.ContainsKey(idxTri1))
@@ -552,7 +552,7 @@ public class NavmeshGenerator : MonoBehaviour
                         nv1 = new NavMeshVertex();
                         nv1.id = v1.id;
                         nv1.point = v1.position;
-                        uniqueNavmeshVertices.Add(v1.id, nv1);
+                        uniqueNavmeshVertices.Add(idxTri1, nv1);
                     }
                     else nv1 = uniqueNavmeshVertices[idxTri1];
                     if (!uniqueNavmeshVertices.ContainsKey(idxTri2))
@@ -560,7 +560,7 @@ public class NavmeshGenerator : MonoBehaviour
                         nv2 = new NavMeshVertex();
                         nv2.id = v2.id;
                         nv2.point = v2.position;
-                        uniqueNavmeshVertices.Add(v2.id, nv2);
+                        uniqueNavmeshVertices.Add(idxTri2, nv2);
                     }
                     else nv2 = uniqueNavmeshVertices[idxTri2];
 
