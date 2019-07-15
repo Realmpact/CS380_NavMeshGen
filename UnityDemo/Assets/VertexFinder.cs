@@ -10,6 +10,7 @@ public class NavMeshVertex
         id = -1;
         neighbours = new List<NavMeshVertex>();
         cost = new List<float>();
+        normal = Vector3.zero;
         Reset();
     }
 
@@ -27,6 +28,7 @@ public class NavMeshVertex
     public float totalCost;
     public NavMeshVertex parent;
     public bool isVisited;
+    public Vector3 normal;
 }
 
 public class VertexFinder : MonoBehaviour
