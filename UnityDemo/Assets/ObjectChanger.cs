@@ -42,7 +42,12 @@ public class ObjectChanger : MonoBehaviour
     {
         models[currIndex].SetActive(false);
 
-        currIndex = targetIndex >= models.Length ? 0 : targetIndex;
+        if (targetIndex <= -1)
+            currIndex = models.Length - 1;
+        else if (targetIndex >= models.Length)
+            currIndex = 0;
+        else
+            currIndex = targetIndex;
 
         models[currIndex].SetActive(true);
         nmg.meshFilter = models[currIndex].GetComponent<MeshFilter>();
