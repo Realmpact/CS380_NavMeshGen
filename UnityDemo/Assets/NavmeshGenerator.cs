@@ -239,7 +239,6 @@ public class NavmeshGenerator : MonoBehaviour
     public Dictionary<int, NavMeshVertex> uniqueNavmeshVertices = new Dictionary<int, NavMeshVertex>();
 
     int index = 0;
-    List<Vector3> keyPoints = new List<Vector3>();
 
     private void Update()
     {
@@ -253,42 +252,19 @@ public class NavmeshGenerator : MonoBehaviour
             index = (index + 1) % uniqueVertices.Count;
         }
 
-        foreach (Vector3 keypoint in keyPoints)
-        {
-            Debug.DrawRay(keypoint, Vector3.up, Color.yellow);
-        }
-        foreach (KeyValuePair<int, Vertex> keypoint in uniqueVertices)
-        {
-            Debug.DrawRay(keypoint.Value.position, Vector3.up, Color.green);
-        }
-        /*int i = 0;
-        foreach (KeyValuePair<int, Vertex> vertex in uniqueVertices)
+        int i = 0;
+        foreach (KeyValuePair<int, Vertex> vertexPair in uniqueVertices)
         {
             if (i == index)
             {
-                Vertex vert = vertex.Value;
-                Debug.DrawRay(vert.position, vert.normal, Color.white);
-                foreach (KeyValuePair<int, Vertex> neighbour in vert.neighbours)
+                Debug.DrawRay(vertexPair.Value.position, vertexPair.Value.normal, Color.white);
+                foreach (KeyValuePair<int, Vertex> neighbourPair in vertexPair.Value.neighbours)
                 {
-                    Debug.DrawRay(neighbour.Value.position, neighbour.Value.normal, Color.black);
+                    Debug.DrawRay(neighbourPair.Value.position, neighbourPair.Value.normal, Color.red);
                 }
             }
-            ++i;
-        }*/
-        /*
-        foreach (Polygon polygon in allPolygons)
-        {
-            foreach (Vertex vertex in polygon.vertices)
-            {
-                Debug.DrawRay(vertex.position, vertex.normal, Color.black);
-
-                foreach (KeyValuePair<int, Vertex> neighbour in uniqueVertices[vertex.id].neighbours)
-                {
-                    Debug.DrawLine(vertex.position, neighbour.Value.position, Color.red);
-                }
-            }
+            i++;
         }
-        */
     }
 
     void MyDrawLine(Vector3 start, Vector3 end, Material lineMat)
@@ -351,11 +327,10 @@ public class NavmeshGenerator : MonoBehaviour
         allPolygons.Clear();
         uniqueVertices.Clear();
         uniqueNavmeshVertices.Clear();
-        keyPoints.Clear();
+
+        Debug.Log("Begin");
 
         float cosSlope = Mathf.Cos(slopeAngle * Mathf.Deg2Rad);
-        GameObject old = new GameObject();
-        old.transform.position = matrix.MultiplyPoint3x4(mesh.vertices[92]);
         for (int i = 0; i < mesh.triangles.Length; i += 3)
         {
             int idxTri0 = mesh.triangles[i];
@@ -363,30 +338,32 @@ public class NavmeshGenerator : MonoBehaviour
             int idxTri2 = mesh.triangles[i + 2];
 
             Vertex v0 = new Vertex(idxTri0, matrix.MultiplyPoint3x4(mesh.vertices[idxTri0]), matrix.MultiplyVector(mesh.normals[idxTri0]));
-            v0.position += v0.normal * meshHeight;
             Vertex v1 = new Vertex(idxTri1, matrix.MultiplyPoint3x4(mesh.vertices[idxTri1]), matrix.MultiplyVector(mesh.normals[idxTri1]));
-            v1.position += v1.normal * meshHeight;
             Vertex v2 = new Vertex(idxTri2, matrix.MultiplyPoint3x4(mesh.vertices[idxTri2]), matrix.MultiplyVector(mesh.normals[idxTri2]));
-            v2.position += v2.normal * meshHeight;
 
+            //Merge vertices that are too close
             foreach (KeyValuePair<int, Vertex> vertexPair in uniqueVertices)
             {
-                if (v0.position == vertexPair.Value.position)
+                if (Vector3.Distance(v0.position, vertexPair.Value.position) <= 0.25f)
                 {
                     idxTri0 = vertexPair.Key;
-                    v0.id = idxTri0;
+                    v0 = vertexPair.Value;
                 }
-                if (v1.position == vertexPair.Value.position)
+                else if (Vector3.Distance(v1.position, vertexPair.Value.position) <= 0.25f)
                 {
                     idxTri1 = vertexPair.Key;
-                    v1.id = idxTri1;
+                    v1 = vertexPair.Value;
                 }
-                if (v2.position == vertexPair.Value.position)
+                else if (Vector3.Distance(v2.position, vertexPair.Value.position) <= 0.25f)
                 {
                     idxTri2 = vertexPair.Key;
-                    v2.id = idxTri2;
+                    v2 = vertexPair.Value;
                 }
             }
+
+            v0.position += v0.normal * meshHeight;
+            v1.position += v1.normal * meshHeight;
+            v2.position += v2.normal * meshHeight;
 
             Triangle triangle = new Triangle(v0, v1, v2);
             if (Vector3.Dot(Vector3.up, triangle.normal) >= cosSlope)
@@ -406,6 +383,8 @@ public class NavmeshGenerator : MonoBehaviour
             }
         }
 
+        Debug.Log("Identify Key Points");
+
         List<int> keyIds = new List<int>();
         foreach (KeyValuePair<int, Vertex> pair in uniqueVertices)
         {
@@ -424,13 +403,11 @@ public class NavmeshGenerator : MonoBehaviour
 
                     if (collider.ClosestPoint(neighbour.position) == neighbour.position)
                     {
-                        keyPoints.Add(vertex.position);
                         invalidId.Add(neighbour.id);
                         keyIds.Add(pair.Key);
                     }
                    else if (collider.Raycast(ray, out hitInfo, dist))
                     {
-                        keyPoints.Add(vertex.position);
                         invalidId.Add(neighbour.id);
                         keyIds.Add(pair.Key);
                         keyIds.Add(neighbourPair.Key);
@@ -450,7 +427,8 @@ public class NavmeshGenerator : MonoBehaviour
             uniqueVertices[id] = vert;
         }
 
-            for (int i = 0; i < allTriangles.Count; ++i)
+        Debug.Log("Group Vertices");
+        for (int i = 0; i < allTriangles.Count; ++i)
         {
             Triangle triangle = allTriangles[i];
             Polygon polygon = new Polygon(triangle);
@@ -465,11 +443,11 @@ public class NavmeshGenerator : MonoBehaviour
                         allTriangles.RemoveAt(j);
                     }
                 }
-
             }
             allPolygons.Add(polygon);
         }
 
+        Debug.Log("Group Polygons");
         bool change = false;
         do
         {
@@ -494,6 +472,7 @@ public class NavmeshGenerator : MonoBehaviour
         }
         while (change);
 
+        Debug.Log("Remove redundant vertices");
         List<int> idsRemove = new List<int>();
         foreach (KeyValuePair<int, Vertex> vertex in uniqueVertices)
         {
@@ -510,6 +489,7 @@ public class NavmeshGenerator : MonoBehaviour
                 idsRemove.Add(vertex.Key);
             }
         }
+
         foreach (KeyValuePair<int, Vertex> vertex in uniqueVertices)
         {
             if (idsRemove.Contains(vertex.Key)) continue;
@@ -521,9 +501,17 @@ public class NavmeshGenerator : MonoBehaviour
         }
         foreach (int id in idsRemove)
         {
-            if (uniqueVertices[id].isKey) Debug.Log("Removing Key Vertex!");
             uniqueVertices.Remove(id);
         }
+
+        //Merge close vertices
+        /*foreach (KeyValuePair<int, Vertex> vertex1 in uniqueVertices)
+        {
+            foreach (KeyValuePair<int, Vertex> vertex2 in uniqueVertices)
+            {
+                if (vertex1.Key == vertex2.Key) continue;
+            }
+        }*/
 
         for (int i = allPolygons.Count - 1; i >= 0; --i)
         {
@@ -546,6 +534,7 @@ public class NavmeshGenerator : MonoBehaviour
             }
         }
 
+        Debug.Log("Gen Navmesh Triangles");
         allNavMeshTriangles.Clear();
         for (int i = allPolygons.Count - 1; i >= 0; --i)
         {
@@ -567,23 +556,9 @@ public class NavmeshGenerator : MonoBehaviour
             for (int j = i + 1; j < allNavMeshTriangles.Count; ++j)
             {
                 if (allNavMeshTriangles[i].IsAdjacent(allNavMeshTriangles[j]))
-                {
+                { 
                     allNavMeshTriangles[i].AddNeighbour(allNavMeshTriangles[j]);
                     allNavMeshTriangles[j].AddNeighbour(allNavMeshTriangles[i]);
-                }
-            }
-        }
-
-        foreach (KeyValuePair<int, Vertex> pair1 in uniqueVertices)
-        {
-            foreach (KeyValuePair<int, Vertex> pair2 in uniqueVertices)
-            {
-                if (pair1.Key == pair2.Key) continue;
-
-                if (pair1.Value.position == pair2.Value.position &&
-                    pair1.Value.normal == pair2.Value.normal)
-                {
-                    Debug.Log("Anomaly detected: " + pair1.Key + " and " + pair2.Key);
                 }
             }
         }
@@ -677,6 +652,7 @@ public class NavmeshGenerator : MonoBehaviour
                         nv0 = new NavMeshVertex();
                         nv0.id = v0.id;
                         nv0.point = v0.position;
+                        nv0.normal = v0.normal;
                         uniqueNavmeshVertices.Add(idxTri0, nv0);
                     }
                     else nv0 = uniqueNavmeshVertices[idxTri0];
@@ -685,6 +661,7 @@ public class NavmeshGenerator : MonoBehaviour
                         nv1 = new NavMeshVertex();
                         nv1.id = v1.id;
                         nv1.point = v1.position;
+                        nv1.normal = v1.normal;
                         uniqueNavmeshVertices.Add(idxTri1, nv1);
                     }
                     else nv1 = uniqueNavmeshVertices[idxTri1];
@@ -693,6 +670,7 @@ public class NavmeshGenerator : MonoBehaviour
                         nv2 = new NavMeshVertex();
                         nv2.id = v2.id;
                         nv2.point = v2.position;
+                        nv2.normal = v2.normal;
                         uniqueNavmeshVertices.Add(idxTri2, nv2);
                     }
                     else nv2 = uniqueNavmeshVertices[idxTri2];

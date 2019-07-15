@@ -108,6 +108,7 @@ public class Robot : MonoBehaviour
         while (path.Count > 0)
         {
             transform.position = Vector3.MoveTowards(transform.position, path[0].point, 4.2f * Time.deltaTime);
+            transform.up = path[0].normal;
             //transform.rotation = Quaternion.LookRotation(path[0].normal);
 
             if (Vector3.Distance(transform.position, path[0].point) <= 0.02f)
@@ -129,8 +130,8 @@ public class Robot : MonoBehaviour
             tri.v2.Reset();
         }
 
-         // Get origin and goal triangle
-        int startIndex = GetTriangleIndex(transform.position);
+        // Get origin and goal triangle
+        int startIndex = GetClosestTriangleIndex(transform.position);//GetTriangleIndex(transform.position);
         int goalIndex = GetTriangleIndex(goal);
 
         if (startIndex == -1)
@@ -242,13 +243,36 @@ public class Robot : MonoBehaviour
         return false;
     }
 
+    public int GetClosestTriangleIndex(Vector3 point)
+    {
+        int index = -1;
+        float shortestDistance = Mathf.Infinity;
+
+        for (int i = 0; i < nmg.allNavMeshTriangles.Count; ++i)
+        {
+            NavmeshTriangle tri = nmg.allNavMeshTriangles[i];
+            Vector3 midPoint = (tri.v0.point + tri.v1.point + tri.v2.point) / 3;
+            float dist = Vector3.Distance(midPoint, point);
+            if (dist < shortestDistance)
+            {
+                shortestDistance = dist;
+                index = i;
+            }
+        }
+
+        return index;
+    }
+
     public int GetTriangleIndex(Vector3 point)
     {
         for (int i = 0; i < nmg.allNavMeshTriangles.Count; ++i)
         {
             NavmeshTriangle tri = nmg.allNavMeshTriangles[i];
             Vector3[] vecs = new Vector3[] { tri.v0.point, tri.v1.point, tri.v2.point };
-
+            /*if (CheckPointInTriangle(point, vecs, 1.0f))
+            {
+                return i;
+            }*/
                 // find barycenter
             Vector3 midPoint = (tri.v0.point + tri.v1.point + tri.v2.point) / 3;
             if (CheckPointInTriangle(midPoint, vecs, 1.0f)) // clockwise
@@ -320,6 +344,18 @@ public class Robot : MonoBehaviour
 
     bool CheckPointInTriangle(Vector3 p, Vector3[] vec, float normDir)
     {
+        /*Vector3 test0 = (vec[0] - p).normalized;
+        Vector3 test1 = (vec[1] - p).normalized;
+        Vector3 test2 = (vec[2] - p).normalized;
+        float angle = 0.0f;
+
+        angle += Vector3.Angle(test0, test1);
+        angle += Vector3.Angle(test1, test2);
+        angle += Vector3.Angle(test2, test0);
+
+        float floatingCheck = Mathf.Abs(360.0f - angle);
+
+        return floatingCheck <= 1.0f;*/
         for (int i = 0; i < 3; ++i)
         {
             int next = i == 2 ? 0 : i + 1;
