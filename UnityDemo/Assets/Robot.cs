@@ -1,11 +1,13 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 public class Robot : MonoBehaviour
 {
     NavmeshGenerator nmg;
     Coroutine moveCoroutine = null;
+    public bool isTeleport = false;
     public bool isShowVertices = false;
 
     void Start()
@@ -15,6 +17,12 @@ public class Robot : MonoBehaviour
 
     void Update()
     {
+        if(Input.GetKeyDown(KeyCode.B))
+        {
+            isTeleport = !isTeleport;
+            GetComponent<MeshRenderer>().material.color = isTeleport ? Color.yellow : Color.white;
+        }
+
         MoveRobot();
     }
 
@@ -23,21 +31,28 @@ public class Robot : MonoBehaviour
     void MoveRobot()
     {
         ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-        if (Input.GetMouseButtonDown(0))
+        if (Input.GetMouseButtonDown(0) && !EventSystem.current.IsPointerOverGameObject())
         {
             if (Physics.Raycast(ray, out hit, 10000.0f, ~(1 << Physics.IgnoreRaycastLayer)))
             {
-                List<NavMeshVertex> path;
-                if (FindPath(hit.point, out path))
+                if (!isTeleport)
                 {
-                    if (moveCoroutine != null)
-                        StopCoroutine(moveCoroutine);
-                    moveCoroutine = StartCoroutine(MoveState(path));
-                    Debug.Log("moving");
+                    List<NavMeshVertex> path;
+                    if (FindPath(hit.point, out path))
+                    {
+                        if (moveCoroutine != null)
+                            StopCoroutine(moveCoroutine);
+                        moveCoroutine = StartCoroutine(MoveState(path));
+                        Debug.Log("moving");
+                    }
+                    else
+                    {
+                        Debug.Log("no path found");
+                    }
                 }
                 else
                 {
-                    Debug.Log("no path found");
+                    transform.position = hit.point;
                 }
             }
         }
