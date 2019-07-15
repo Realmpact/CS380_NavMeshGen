@@ -65,7 +65,7 @@ public class Robot : MonoBehaviour
             Gizmos.DrawSphere(hit.point, 0.1f);
         }
 
-        if (nmg != null && nmg.allNavMeshTriangles != null)
+        /*if (nmg != null && nmg.allNavMeshTriangles != null)
         {
             foreach (NavmeshTriangle tri in nmg.allNavMeshTriangles)
             {
@@ -100,7 +100,7 @@ public class Robot : MonoBehaviour
                     Gizmos.DrawSphere(tri.v2.point, 0.1f);
                 }
             }
-        }
+        }*/
     }
 
     IEnumerator MoveState(List<NavMeshVertex> path)
