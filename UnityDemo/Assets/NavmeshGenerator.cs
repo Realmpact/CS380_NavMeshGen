@@ -252,7 +252,7 @@ public class NavmeshGenerator : MonoBehaviour
             index = (index + 1) % uniqueVertices.Count;
         }
 
-        int i = 0;
+        /*int i = 0;
         foreach (KeyValuePair<int, Vertex> vertexPair in uniqueVertices)
         {
             if (i == index)
@@ -264,7 +264,7 @@ public class NavmeshGenerator : MonoBehaviour
                 }
             }
             i++;
-        }
+        }*/
     }
 
     void MyDrawLine(Vector3 start, Vector3 end, Material lineMat)
@@ -315,6 +315,15 @@ public class NavmeshGenerator : MonoBehaviour
         DrawNavMesh();
     }
 
+    public void ClearNavmesh()
+    {
+        allTriangles.Clear();
+        allPolygons.Clear();
+        uniqueVertices.Clear();
+        uniqueNavmeshVertices.Clear();
+        allNavMeshTriangles.Clear();
+    }
+
     public void ComputeNavmesh()
     {
         if (!meshFilter) return;
@@ -323,10 +332,7 @@ public class NavmeshGenerator : MonoBehaviour
 
         Mesh mesh = meshFilter.mesh;
         Matrix4x4 matrix = meshFilter.transform.localToWorldMatrix;
-        allTriangles.Clear();
-        allPolygons.Clear();
-        uniqueVertices.Clear();
-        uniqueNavmeshVertices.Clear();
+        ClearNavmesh();
 
         Debug.Log("Begin");
 
@@ -361,9 +367,9 @@ public class NavmeshGenerator : MonoBehaviour
                 }
             }
 
-            v0.position += v0.normal * meshHeight;
-            v1.position += v1.normal * meshHeight;
-            v2.position += v2.normal * meshHeight;
+            v0.position += v0.normal.normalized * meshHeight;
+            v1.position += v1.normal.normalized * meshHeight;
+            v2.position += v2.normal.normalized * meshHeight;
 
             Triangle triangle = new Triangle(v0, v1, v2);
             if (Vector3.Dot(Vector3.up, triangle.normal) >= cosSlope)
@@ -535,7 +541,7 @@ public class NavmeshGenerator : MonoBehaviour
         }
 
         Debug.Log("Gen Navmesh Triangles");
-        allNavMeshTriangles.Clear();
+        
         for (int i = allPolygons.Count - 1; i >= 0; --i)
         {
             List<Vertex> temp = allPolygons[i].vertices;

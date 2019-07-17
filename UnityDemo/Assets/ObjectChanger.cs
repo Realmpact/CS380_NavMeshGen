@@ -36,6 +36,7 @@ public class ObjectChanger : MonoBehaviour
     public void SwitchModel(int dir)
     {
         ChangeModel(currIndex + dir);
+        nmg.ClearNavmesh();
     }
 
     void ChangeModel(int targetIndex)
